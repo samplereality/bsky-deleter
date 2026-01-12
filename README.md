@@ -9,8 +9,7 @@ A Python script to selectively delete old posts from your Bluesky account based 
 - **Image protection**: Option to keep all posts that contain images
 - **Flexible thresholds**: Keep posts if they have enough likes OR reposts OR images (configurable)
 - **Dry-run mode**: Preview what would be deleted before making any changes
-- **Seamless workflow**: After dry-run, proceed directly to deletion without re-entering details
-- **Comprehensive logging**: Track all deletions with timestamps and post details
+- **Comprehensive logging**: Track all deletions with timestamps and post details, including full text of each deleted post
 - **Interactive prompts**: Easy-to-use command-line interface
 - **Multi-account support**: No stored credentials - works with any Bluesky account
 
@@ -181,7 +180,7 @@ Progress: 83/83 posts deleted
 
 ## Rate Limiting
 
-The script implements intelligent rate limiting to avoid hitting Bluesky's API limits:
+The script implements flexible rate limiting to avoid hitting Bluesky's API limits:
 
 - **0.5 second delay** between each deletion
 - **Automatic retry** if a rate limit error occurs (up to 3 attempts)
@@ -198,7 +197,7 @@ All operations are logged to the `logs/` directory with timestamps:
 
 Each log includes:
 - Post URIs
-- Post text previews
+- Full post text
 - Age and engagement metrics
 - Success/failure status
 - Rate limit warnings and retries
