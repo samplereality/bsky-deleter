@@ -104,6 +104,20 @@ def get_parameters():
         except ValueError:
             print("Error: Please enter a valid number.")
 
+    # Get keep images preference
+    while True:
+        keep_images_input = input("\nKeep posts that have images? [Y/n]: ").strip().lower()
+        if keep_images_input in ['', 'y', 'yes']:
+            keep_images = True
+            print("  → Posts with images will be kept")
+            break
+        elif keep_images_input in ['n', 'no']:
+            keep_images = False
+            print("  → Posts with images will NOT be protected")
+            break
+        else:
+            print("Error: Please enter 'y' or 'n'.")
+
     # Get dry-run mode
     while True:
         dry_run_input = input("\nDry-run mode? (preview only, no deletions) [Y/n]: ").strip().lower()
@@ -120,17 +134,19 @@ def get_parameters():
     print("\n" + "=" * 80)
     print("DELETION CRITERIA SUMMARY:")
     print(f"  • Posts older than {days} days will be considered for deletion")
-    if min_likes > 0 or min_reposts > 0:
+    if min_likes > 0 or min_reposts > 0 or keep_images:
         print("  • Posts will be KEPT if they have:")
         if min_likes > 0:
             print(f"    - At least {min_likes} likes")
         if min_reposts > 0:
             print(f"    - At least {min_reposts} reposts")
+        if keep_images:
+            print(f"    - Images attached")
     else:
         print("  • No engagement protection (all old posts will be deleted)")
     print("=" * 80)
 
-    return days, min_likes, min_reposts, dry_run
+    return days, min_likes, min_reposts, keep_images, dry_run
 
 
 def authenticate(username, password):
@@ -187,11 +203,12 @@ def fetch_posts(client, logger):
         sys.exit(1)
 
 
-def filter_posts(posts, days_threshold, min_likes, min_reposts, logger):
+def filter_posts(posts, days_threshold, min_likes, min_reposts, keep_images, logger):
     """Filter posts to determine which should be deleted."""
     likes_criteria = f"likes >= {min_likes}" if min_likes > 0 else "likes ignored"
     reposts_criteria = f"reposts >= {min_reposts}" if min_reposts > 0 else "reposts ignored"
-    logger.info(f"Filtering criteria: age > {days_threshold} days, {likes_criteria}, {reposts_criteria}")
+    images_criteria = "keep posts with images" if keep_images else "images not protected"
+    logger.info(f"Filtering criteria: age > {days_threshold} days, {likes_criteria}, {reposts_criteria}, {images_criteria}")
 
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
     posts_to_delete = []
@@ -209,6 +226,14 @@ def filter_posts(posts, days_threshold, min_likes, min_reposts, logger):
         like_count = post.like_count or 0
         repost_count = post.repost_count or 0
 
+        # Check if post has images
+        has_images = False
+        if hasattr(post.record, 'embed') and post.record.embed:
+            # Check for images in embed (could be images or external links with images)
+            embed_type = post.record.embed.py_type if hasattr(post.record.embed, 'py_type') else str(type(post.record.embed))
+            if 'images' in embed_type.lower() or (hasattr(post.record.embed, 'images') and post.record.embed.images):
+                has_images = True
+
         # Calculate age
         age_days = (datetime.now(timezone.utc) - created_at).days
 
@@ -223,6 +248,8 @@ def filter_posts(posts, days_threshold, min_likes, min_reposts, logger):
             keep_reasons.append(f"{like_count} likes")
         if min_reposts > 0 and repost_count >= min_reposts:
             keep_reasons.append(f"{repost_count} reposts")
+        if keep_images and has_images:
+            keep_reasons.append("has images")
 
         if keep_reasons:
             posts_to_keep.append({
@@ -381,14 +408,14 @@ def main():
     username, password = get_credentials()
 
     # Get parameters
-    days, min_likes, min_reposts, dry_run = get_parameters()
+    days, min_likes, min_reposts, keep_images, dry_run = get_parameters()
 
     # Set up logging
     logger = setup_logging(dry_run)
     logger.info("=" * 80)
     logger.info("Starting Bluesky Post Deleter")
     logger.info(f"User: {username}")
-    logger.info(f"Parameters: days={days}, min_likes={min_likes}, min_reposts={min_reposts}, dry_run={dry_run}")
+    logger.info(f"Parameters: days={days}, min_likes={min_likes}, min_reposts={min_reposts}, keep_images={keep_images}, dry_run={dry_run}")
 
     # Authenticate
     client = authenticate(username, password)
@@ -402,7 +429,7 @@ def main():
         return
 
     # Filter posts
-    posts_to_delete, posts_to_keep = filter_posts(posts, days, min_likes, min_reposts, logger)
+    posts_to_delete, posts_to_keep = filter_posts(posts, days, min_likes, min_reposts, keep_images, logger)
 
     # Preview deletions
     preview_deletions(posts_to_delete, logger)
@@ -439,7 +466,7 @@ def main():
             logger.info("=" * 80)
             logger.info("Proceeding with actual deletion after dry-run")
             logger.info(f"User: {username}")
-            logger.info(f"Parameters: days={days}, min_likes={min_likes}, min_reposts={min_reposts}")
+            logger.info(f"Parameters: days={days}, min_likes={min_likes}, min_reposts={min_reposts}, keep_images={keep_images}")
 
             # Confirm deletion
             if not confirm_deletion():

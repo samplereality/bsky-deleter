@@ -6,7 +6,8 @@ A Python script to selectively delete old posts from your Bluesky account based 
 
 - **Age-based deletion**: Delete posts older than a specified number of days
 - **Engagement protection**: Automatically preserve posts with high likes or reposts
-- **Flexible thresholds**: Keep posts if they have enough likes OR reposts (configurable)
+- **Image protection**: Option to keep all posts that contain images
+- **Flexible thresholds**: Keep posts if they have enough likes OR reposts OR images (configurable)
 - **Dry-run mode**: Preview what would be deleted before making any changes
 - **Seamless workflow**: After dry-run, proceed directly to deletion without re-entering details
 - **Comprehensive logging**: Track all deletions with timestamps and post details
@@ -15,12 +16,27 @@ A Python script to selectively delete old posts from your Bluesky account based 
 
 ## How It Works
 
-The script keeps a post if **ANY** of the following conditions are true:
+The script uses an **OR** condition - a post is kept if **ANY ONE** of the following is true:
 - Post is newer than the age threshold
 - Post has at least the minimum number of likes (if likes threshold > 0)
-- Post has at least the minimum number of reposts (if reposts threshold > 0)
+- **OR** post has at least the minimum number of reposts (if reposts threshold > 0)
+- **OR** post contains images (if image protection is enabled)
 
-Posts are only deleted if they fail **ALL** conditions (old AND low engagement).
+**Posts are only deleted if they fail ALL conditions** (old AND insufficient likes AND insufficient reposts AND no images).
+
+### Example
+If you set:
+- Age: 90 days
+- Likes: 10
+- Reposts: 5
+- Images: Yes
+
+A 100-day-old post will be **kept** if it has:
+- 10+ likes (even with 0 reposts and no images), **OR**
+- 5+ reposts (even with 0 likes and no images), **OR**
+- Any images (even with 0 likes and 0 reposts)
+
+The post is **deleted** only if it has: less than 10 likes AND less than 5 reposts AND no images.
 
 ### Disabling Engagement Protection
 
@@ -79,7 +95,8 @@ The script will interactively prompt you for:
 3. **Days threshold**: Delete posts older than this many days (e.g., `30`)
 4. **Minimum likes**: Keep posts with at least this many likes (e.g., `5`, or `0` to ignore)
 5. **Minimum reposts**: Keep posts with at least this many reposts (e.g., `2`, or `0` to ignore)
-6. **Dry-run mode**: Choose whether to preview only or actually delete
+6. **Keep images**: Whether to preserve posts that contain images (default: yes)
+7. **Dry-run mode**: Choose whether to preview only or actually delete
 
 ### Example Session
 
@@ -97,6 +114,9 @@ Keep posts with at least this many likes (0 = ignore likes): 10
 Keep posts with at least this many reposts (0 = ignore reposts): 0
   → Reposts will be ignored (posts won't be protected by reposts)
 
+Keep posts that have images? [Y/n]: y
+  → Posts with images will be kept
+
 Dry-run mode? (preview only, no deletions) [Y/n]: y
 
 ================================================================================
@@ -104,6 +124,7 @@ DELETION CRITERIA SUMMARY:
   • Posts older than 90 days will be considered for deletion
   • Posts will be KEPT if they have:
     - At least 10 likes
+    - Images attached
 ================================================================================
 
 Authenticating...
