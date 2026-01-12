@@ -352,8 +352,9 @@ def delete_posts(client, posts_to_delete, logger, dry_run=False):
                 )
                 deleted_count += 1
 
-                text_preview = post.record.text[:50] + "..." if len(post.record.text) > 50 else post.record.text
-                logger.info(f"Deleted {i}/{len(posts_to_delete)}: {post.uri} | {text_preview}")
+                # Log the full text of the deleted post
+                full_text = post.record.text
+                logger.info(f"Deleted {i}/{len(posts_to_delete)}: {post.uri} | {full_text}")
 
                 # Progress indicator
                 if i % 10 == 0 or i == len(posts_to_delete):
@@ -375,13 +376,15 @@ def delete_posts(client, posts_to_delete, logger, dry_run=False):
                         continue
                     else:
                         failed_count += 1
-                        logger.error(f"Rate limit exceeded for {post.uri} after {max_retries} attempts")
+                        full_text = post.record.text
+                        logger.error(f"Rate limit exceeded for {post.uri} after {max_retries} attempts | {full_text}")
                         print(f"✗ Failed to delete post {i} after {max_retries} attempts (rate limit)")
                         break
                 else:
                     # Non-rate-limit error
                     failed_count += 1
-                    logger.error(f"Failed to delete {post.uri}: {e}")
+                    full_text = post.record.text
+                    logger.error(f"Failed to delete {post.uri}: {e} | {full_text}")
                     print(f"✗ Failed to delete post {i}: {e}")
                     break
 
